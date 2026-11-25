@@ -94,7 +94,12 @@ Guarda una copia de la clave fuera del ordenador: sin ella no podrás publicar a
   desde las versiones de sus autores en GitHub (el enlace de jrsoftware.org daba 404).
 - **Linux ARM64 «Waiting for a runner»**: los equipos ARM de GitHub no siempre están disponibles en
   repositorios privados. Por eso las dos versiones de Linux se compilan en el mismo equipo (la de
-  ARM64 con `cross`) y la de ARM64 se prueba en un equipo emulado.
+  ARM64 en un contenedor de Ubuntu 22.04 con las bibliotecas de ARM64) y la de ARM64 se prueba en un
+  equipo emulado.
+- **Linux: «python3.12-minimal:arm64 … Exec format error»**: ocurría con la imagen de `cross`, que
+  ahora es Ubuntu 24.04 y, al instalar las bibliotecas de ARM64, traía también el Python de ARM64,
+  que no se puede preparar en un PC. Ya no se usa `cross`: el contenedor propio
+  (`packaging/linux/Dockerfile`) es Ubuntu 22.04, donde esas bibliotecas se instalan sin él.
 - **«The configuration 'macos-…' is not supported»**: GitHub retira las versiones antiguas de macOS;
   el flujo pide siempre la vigente (`macos-latest`).
 - **«Publicar la versión» falla con «already exists»**: ya hay una versión con esa etiqueta. Usa un

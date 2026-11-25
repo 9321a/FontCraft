@@ -32,7 +32,7 @@ Con el código descargado, en la carpeta del proyecto (el resultado queda en `ta
 | --- | --- | --- |
 | macOS | Rust y las herramientas de Xcode (`xcode-select --install`) | `packaging/macos/build-dmg.sh` |
 | Windows | Rust, Visual Studio Build Tools con «Desarrollo para el escritorio con C++» y el componente «Herramientas de compilación de MSVC para ARM64», e Inno Setup 6.3 o posterior (el script lo instala si falta) | `powershell -ExecutionPolicy Bypass -File packaging\windows\build-installer.ps1` |
-| Linux | Rust, `sudo apt install build-essential pkg-config libgtk-3-dev libxdo-dev`, y Docker o Podman para la mitad del otro procesador (la compila `cross`) | `packaging/linux/build-deb.sh` |
+| Linux | Rust, `sudo apt install build-essential pkg-config libgtk-3-dev libxdo-dev`, y Docker para la mitad del otro procesador (se compila en un contenedor de Ubuntu 22.04 con sus bibliotecas) | `packaging/linux/build-deb.sh` |
 | Android | el SDK y el NDK de Android, Java 17 y `ANDROID_HOME` | `packaging/android/build-apk.sh` |
 | iPad y iPhone | un Mac con Rust y Xcode | `packaging/ipados/build-ipa.sh` |
 
@@ -80,5 +80,5 @@ privada de la app.
 | `packaging` | los instaladores de cada sistema y sus pruebas |
 | `android`, `ipados` | los paquetes de Android e iPadOS (compilan `src` como app móvil) |
 | `.github/workflows/build.yml` | la compilación automática en GitHub |
-| `Cross.toml` | las bibliotecas que `cross` añade para compilar Linux para el otro procesador |
+| `packaging/linux/Dockerfile` | el contenedor de Ubuntu 22.04 donde se compila Linux para el otro procesador |
 | `MECHANICS.md`, `mechanics.json` | cada valor y comportamiento, con su origen |

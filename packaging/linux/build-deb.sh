@@ -9,10 +9,12 @@
 #
 # Runs on Debian or Ubuntu with Rust, dpkg-deb and FontCraft's libraries for this computer
 # (sudo apt install build-essential pkg-config libgtk-3-dev libxdo-dev). FontCraft links GTK (its
-# menu bar icon and print dialog), so the half for the other processor is built with `cross`, which
-# brings that processor's compiler and libraries in a container (Docker or Podman; Cross.toml says
-# which libraries); with FONTCRAFT_NO_CROSS=1 it is built with plain cargo instead, for a computer
-# that already has them.
+# menu bar icon and print dialog) and xdo, so the half for the other processor needs that
+# processor's C compiler and those libraries: they are put in a container (Docker) made from
+# packaging/linux/Dockerfile, an Ubuntu 22.04 with the other processor's packages beside its own,
+# and this computer's Rust builds there. With FONTCRAFT_NO_DOCKER=1 it is built right here instead,
+# for a computer that already has them (gcc-aarch64-linux-gnu and the :arm64 libraries, or the
+# other way round).
 set -euo pipefail
 APP="$(cd "$(dirname "$0")/../.." && pwd)"
 cd "$APP"
@@ -21,15 +23,33 @@ X64=target/x86_64-unknown-linux-gnu/release/FontCraft
 ARM=target/aarch64-unknown-linux-gnu/release/FontCraft
 
 if [ "${1:-}" != "--no-build" ]; then
-  case "$(uname -m)" in aarch64 | arm64) HERE=aarch64-unknown-linux-gnu OTHER=x86_64-unknown-linux-gnu ;; *) HERE=x86_64-unknown-linux-gnu OTHER=aarch64-unknown-linux-gnu ;; esac
-  rustup target add "$HERE" >/dev/null 2>&1 || true
+  case "$(uname -m)" in
+    aarch64 | arm64) HERE=aarch64-unknown-linux-gnu OTHER=x86_64-unknown-linux-gnu FOREIGN=amd64 GNU=x86_64-linux-gnu GCC=gcc-x86-64-linux-gnu ;;
+    *) HERE=x86_64-unknown-linux-gnu OTHER=aarch64-unknown-linux-gnu FOREIGN=arm64 GNU=aarch64-linux-gnu GCC=gcc-aarch64-linux-gnu ;;
+  esac
+  rustup target add "$HERE" "$OTHER" >/dev/null 2>&1 || true
   cargo build --release --target "$HERE"
-  if [ -n "${FONTCRAFT_NO_CROSS:-}" ]; then
-    rustup target add "$OTHER" >/dev/null 2>&1 || true
-    cargo build --release --target "$OTHER"
+  # The other processor's half: its linker and C compiler, and pkg-config asked about its
+  # libraries only (for that target alone: build scripts still run on this computer).
+  LOW="$(printf %s "$OTHER" | tr - _)"
+  UP="$(printf %s "$LOW" | tr '[:lower:]' '[:upper:]')"
+  CROSS_ENV=("CARGO_TARGET_${UP}_LINKER=$GNU-gcc" "CC_$LOW=$GNU-gcc" "AR_$LOW=$GNU-ar"
+    "PKG_CONFIG_ALLOW_CROSS_$LOW=1" "PKG_CONFIG_LIBDIR_$LOW=/usr/lib/$GNU/pkgconfig:/usr/share/pkgconfig")
+  if [ -n "${FONTCRAFT_NO_DOCKER:-}" ]; then
+    env "${CROSS_ENV[@]}" cargo build --release --target "$OTHER"
   else
-    command -v cross >/dev/null 2>&1 || cargo install cross --git https://github.com/cross-rs/cross --locked
-    cross build --release --target "$OTHER"
+    IMAGE="fontcraft-linux-$FOREIGN"
+    docker build --tag "$IMAGE" --build-arg "FOREIGN=$FOREIGN" --build-arg "GCC=$GCC" --file packaging/linux/Dockerfile packaging/linux
+    DOCKER_ENV=()
+    for e in "${CROSS_ENV[@]}"; do DOCKER_ENV+=(--env "$e"); done
+    # This computer's Rust (toolchain, downloaded crates) and the project, at the same places as
+    # here (so cargo sees the same files it built), used as this user, so what it builds belongs to
+    # them as everything else in target/ does.
+    CH="${CARGO_HOME:-$HOME/.cargo}"
+    RH="${RUSTUP_HOME:-$HOME/.rustup}"
+    docker run --rm --user "$(id -u):$(id -g)" --env HOME=/tmp --env "CARGO_HOME=$CH" --env "RUSTUP_HOME=$RH" "${DOCKER_ENV[@]}" \
+      --volume "$CH:$CH" --volume "$RH:$RH" --volume "$APP:$APP" --workdir "$APP" \
+      "$IMAGE" "$CH/bin/cargo" build --release --target "$OTHER"
   fi
 fi
 for b in "$X64" "$ARM"; do
