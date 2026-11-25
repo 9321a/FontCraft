@@ -293,6 +293,7 @@ pub fn pick_folder_or_library_async(start: Option<PathBuf>, cb: impl FnOnce(Opti
 }
 
 #[cfg(any(target_os = "android", target_os = "ios"))]
+#[allow(dead_code)]
 pub fn pick_folder_or_library_async(_start: Option<PathBuf>, cb: impl FnOnce(Option<PathBuf>) + Send + 'static) {
     cb(None);
 }

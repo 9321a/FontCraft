@@ -1296,6 +1296,68 @@
    "group": "apps",
    "value": "PhotoCraft's own preference fillNewTypeLayersWithPlaceholder (true on this Mac) puts Lorem ipsum in new type layers",
    "source": "PhotoCraft preferences.json; FontCraft never sends type.pasteLoremIpsum"
+  },
+  {
+   "name": "PressCraft font list",
+   "group": "apps",
+   "value": "read once when it opens: /System/Library/Fonts, /Library/Fonts, ~/Library/Fonts (4 folders deep)",
+   "source": "PressCraft text.rs scan_system / font_dirs, App::new"
+  },
+  {
+   "name": "PressCraft has a family",
+   "group": "apps",
+   "value": "a file of it in those folders (or FontCraft's copy) changed before PressCraft's launch date",
+   "source": "NSRunningApplication launchDate; file status-change time"
+  },
+  {
+   "name": "PressCraft font field",
+   "group": "apps",
+   "value": "the AXTextField with the style AXPopUpButton beside it; AXFocused, AXValue = family + space, Return",
+   "source": "PressCraft studio2.rs font_picker/find_fonts; egui 0.37 TextEdit SetValue; accesskit_consumer placeholder only for empty fields"
+  },
+  {
+   "name": "PressCraft style",
+   "group": "apps",
+   "value": "the style menu's entry found by hit-testing below it, then the menu closed",
+   "source": "egui ComboBox (AXPopUpButton) and selectable labels (AXCheckBox); checked on a test copy"
+  },
+  {
+   "name": "PressCraft wrong family",
+   "group": "apps",
+   "value": "taken back with Command-Z; nothing of that name: Escape",
+   "source": "PressCraft format_text is one undo step ('Fuente')"
+  },
+  {
+   "name": "PressCraft documents",
+   "group": "apps",
+   "value": "PDF carrying a zip (mimetype application/x-presscraft, document.json); front one = window title + settings.json recent",
+   "source": "PressCraft fileio.rs pdf_document_bytes, app.rs title/add_recent"
+  },
+  {
+   "name": "PRESSCRAFT_STEP_MS",
+   "group": "apps",
+   "value": 220,
+   "unit": "ms",
+   "estimated": true
+  },
+  {
+   "name": "PRESSCRAFT_PICK_WAIT_MS",
+   "group": "apps",
+   "value": 1500,
+   "unit": "ms",
+   "estimated": true
+  },
+  {
+   "name": "PRESSCRAFT_TREE_TRIES",
+   "group": "apps",
+   "value": 8,
+   "estimated": true
+  },
+  {
+   "name": "PRESSCRAFT_TREE_NODES",
+   "group": "apps",
+   "value": 6000,
+   "estimated": true
   }
  ]
 }

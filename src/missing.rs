@@ -158,6 +158,16 @@ impl App {
         }
         if let Some((path, bundle, fonts)) = done {
             let have = self.available_names();
+            // PressCraft lists only the fonts that were on when it opened: families FontCraft has on
+            // that it didn't read show as missing there ("(falta)") until it is reopened.
+            if bundle == crate::presscraft::BUNDLE {
+                let unread = fonts.iter().filter(|f| have.contains(&f.to_lowercase())).any(|f| {
+                    self.lib.families.iter().find(|fam| fam.name.eq_ignore_ascii_case(f)).is_some_and(|fam| !self.presscraft_lists(fam.default_face))
+                });
+                if unread {
+                    self.notice = Some(crate::i18n::tr(self.settings.lang, crate::i18n::K::ReopenToSee).replace("{apps}", "PressCraft"));
+                }
+            }
             // The system's own interface fonts are never missing (RightFont's rule, 0x10004f89c).
             let names: Vec<String> = fonts.into_iter().filter(|f| !have.contains(&f.to_lowercase()) && !crate::fontreq::is_system_ui(f)).collect();
             if !names.is_empty() {
@@ -172,7 +182,7 @@ impl App {
         // The front document, as the watcher saw it.
         let front = self.autoact.front_document();
         if let Some((path, bundle)) = front {
-            if !crate::docfonts::readable(&path) {
+            if !crate::docfonts::readable_for(&path, &bundle) {
                 return;
             }
             let mtime = std::fs::metadata(&path).and_then(|m| m.modified()).ok().and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok()).map_or(0, |d| d.as_secs());

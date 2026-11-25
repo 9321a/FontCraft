@@ -182,6 +182,13 @@ pub fn clear_leftovers(paths: &[std::path::PathBuf]) {
     let _ = paths;
 }
 
+/// The file FontCraft keeps in ~/Library/Fonts/FontCraft while this font is on (macOS), if it is
+/// there: apps that read the font folders themselves (PressCraft) see the font through it.
+#[cfg(target_os = "macos")]
+pub fn placed(path: &Path) -> Option<std::path::PathBuf> {
+    slot(&mac::folder(), path).filter(|p| p.exists())
+}
+
 /// At start, before the fonts kept on are turned on again: what an earlier session or a crash left
 /// in FontCraft's user font folder (macOS/Android) goes, except the files of `keep`.
 pub fn sweep(keep: &[std::path::PathBuf]) {

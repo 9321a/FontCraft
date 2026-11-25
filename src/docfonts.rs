@@ -3,7 +3,8 @@
 //!   `typeface="…"` in the package's XML parts;
 //! - OpenDocument (.odt .ods .odp .odg and the flat .fodt .fods .fodp .fodg): `style:font-face`
 //!   `svg:font-family`, `fo:font-family`, `style:font-name`;
-//! - RTF: the font table; SVG and HTML: `font-family`.
+//! - RTF: the font table; SVG and HTML: `font-family`;
+//! - PressCraft (its PDFs and .presscraft files): the families of its document.json.
 //! Generic families (serif, sans-serif…), theme placeholders (+mn-lt…) and the system's UI font are
 //! left out.
 
@@ -56,9 +57,25 @@ pub fn fonts_in(path: &Path) -> Vec<String> {
                 rtf_fonts(&String::from_utf8_lossy(&bytes), &mut out);
             }
         }
+        // PressCraft's documents: a PDF carrying the editable document, or that document alone
+        // (presscraft.rs); any other PDF names nothing here.
+        "pdf" | "presscraft" => {
+            if std::fs::metadata(path).is_ok_and(|m| m.len() <= 1 << 30) {
+                if let Ok(bytes) = std::fs::read(path) {
+                    for f in crate::presscraft::families(&bytes) {
+                        keep(&f, &mut out);
+                    }
+                }
+            }
+        }
         _ => {}
     }
     out.into_iter().collect()
+}
+
+/// The document kinds read for this app: PressCraft's PDFs and .presscraft files besides the others.
+pub fn readable_for(path: &Path, bundle: &str) -> bool {
+    readable(path) || (bundle == crate::presscraft::BUNDLE && matches!(ext(path).as_str(), "pdf" | "presscraft"))
 }
 
 fn keep(name: &str, out: &mut BTreeSet<String>) {

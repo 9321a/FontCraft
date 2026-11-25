@@ -68,6 +68,20 @@ pub const REOPEN_GRACE_S: f64 = 60.0;
 #[cfg_attr(not(target_os = "macos"), allow(dead_code))]
 pub const CHANNEL_WAIT_S: f64 = 5.0;
 
+/// PressCraft's font field, filled through Accessibility (presscraft.rs): the pause after each step
+/// (the field taking the keyboard, the family typed in, the style menu opened) for PressCraft to
+/// draw a frame; the longest wait for the field to show the family after Return; how many times its
+/// interface is asked for (AccessKit sends PressCraft's widgets to macOS only after the first
+/// question, a frame later), every 250 ms; and the most elements looked at. Estimated.
+#[cfg_attr(not(target_os = "macos"), allow(dead_code))]
+pub const PRESSCRAFT_STEP_MS: u64 = 220;
+#[cfg_attr(not(target_os = "macos"), allow(dead_code))]
+pub const PRESSCRAFT_PICK_WAIT_MS: u64 = 1500;
+#[cfg_attr(not(target_os = "macos"), allow(dead_code))]
+pub const PRESSCRAFT_TREE_TRIES: u32 = 8;
+#[cfg_attr(not(target_os = "macos"), allow(dead_code))]
+pub const PRESSCRAFT_TREE_NODES: usize = 6000;
+
 /// FontCraft opened again (Finder, Dock, Launchpad, Spotlight) while it works in the menu bar
 /// shows its window, as RightFont does (-[RFAppDelegate applicationShouldHandleReopen:
 /// hasVisibleWindows:], 0x1000db7fc) — but not within this long of starting or of a trip to or

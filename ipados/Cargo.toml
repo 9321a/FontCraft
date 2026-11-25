@@ -1,5 +1,5 @@
 # FontCraft for iPadOS / iOS: the same code as the desktop app (../src), built for iPad and iPhone.
-# Built with ../compilar-ipados.sh or in GitHub Actions.
+# Built with ../packaging/ipados/build-ipa.sh or in GitHub Actions.
 [package]
 name = "fontcraft-ipados"
 version = "0.1.0"

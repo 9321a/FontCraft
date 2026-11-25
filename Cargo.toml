@@ -3,41 +3,12 @@ name = "fontcraft"
 version = "0.1.0"
 edition = "2021"
 description = "FontCraft: browse, preview, print and switch on fonts"
+
+# The installers (one per system, each with both processors inside) are made by the scripts in
+# packaging/ and by .github/workflows/build.yml; README.md, «Instaladores».
 [[bin]]
 name = "FontCraft"
 path = "src/main.rs"
-
-# Ubuntu / Debian package (cargo deb), x64 and ARM64.
-[package.metadata.deb]
-name = "fontcraft"
-maintainer = "FontCraft"
-section = "graphics"
-priority = "optional"
-extended-description = "Browse, preview and switch on fonts; FontCraft libraries (.fcl)."
-depends = "libgtk-3-0, libxdo3, libayatana-appindicator3-1"
-# Typing glyphs into other apps (X11).
-recommends = "xdotool"
-assets = [
-    ["target/release/FontCraft", "usr/bin/fontcraft", "755"],
-    ["packaging/linux/fontcraft.desktop", "usr/share/applications/", "644"],
-    ["packaging/linux/fontcraft-library.xml", "usr/share/mime/packages/", "644"],
-    ["assets/icons/png/fontcraft-256.png", "usr/share/icons/hicolor/256x256/apps/fontcraft.png", "644"],
-    ["assets/icons/png/fontcraft-512.png", "usr/share/icons/hicolor/512x512/apps/fontcraft.png", "644"],
-    ["assets/icons/png/fontcraft-library-256.png", "usr/share/icons/hicolor/256x256/mimetypes/application-x-fontcraft-library.png", "644"],
-]
-
-# Fedora / openSUSE / RHEL package (cargo generate-rpm), x64 and ARM64.
-[package.metadata.generate-rpm]
-name = "fontcraft"
-summary = "Browse, preview and switch on fonts"
-license = "Proprietary"
-assets = [
-    { source = "target/release/FontCraft", dest = "/usr/bin/fontcraft", mode = "755" },
-    { source = "packaging/linux/fontcraft.desktop", dest = "/usr/share/applications/fontcraft.desktop", mode = "644" },
-    { source = "packaging/linux/fontcraft-library.xml", dest = "/usr/share/mime/packages/fontcraft-library.xml", mode = "644" },
-    { source = "assets/icons/png/fontcraft-256.png", dest = "/usr/share/icons/hicolor/256x256/apps/fontcraft.png", mode = "644" },
-    { source = "assets/icons/png/fontcraft-library-256.png", dest = "/usr/share/icons/hicolor/256x256/mimetypes/application-x-fontcraft-library.png", mode = "644" },
-]
 
 [features]
 default = ["net"]

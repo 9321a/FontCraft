@@ -48,6 +48,7 @@ mod gfonts;
 mod background;
 mod importdlg;
 mod autoact;
+mod presscraft;
 mod mechanics;
 mod langs;
 mod activate;
@@ -2253,24 +2254,18 @@ impl App {
 }
 
 impl eframe::App for App {
-    // TEMP-TEST-RCLICK: synthetic right-click (x,y,frame) for a crash test; removed after testing.
+    /// Test pictures: FONTCRAFT_TEST_HOVER="x,y" keeps the pointer there (read once).
     fn raw_input_hook(&mut self, _ctx: &egui::Context, raw: &mut egui::RawInput) {
-        if let Ok(spec) = std::env::var("FONTCRAFT_TEST_HOVER") {
-            let v: Vec<f32> = spec.split(',').filter_map(|s| s.trim().parse().ok()).collect();
-            if let [x, y] = v[..] {
-                raw.events.push(egui::Event::PointerMoved(egui::pos2(x, y)));
+        static HOVER: std::sync::OnceLock<Option<egui::Pos2>> = std::sync::OnceLock::new();
+        let at = HOVER.get_or_init(|| {
+            let v: Vec<f32> = std::env::var("FONTCRAFT_TEST_HOVER").ok()?.split(',').filter_map(|s| s.trim().parse().ok()).collect();
+            match v[..] {
+                [x, y] => Some(egui::pos2(x, y)),
+                _ => None,
             }
-        }
-        let Ok(spec) = std::env::var("FONTCRAFT_TEST_RCLICK") else { return };
-        let v: Vec<f32> = spec.split(',').filter_map(|s| s.trim().parse().ok()).collect();
-        let [x, y, f] = v[..] else { return };
-        let (pos, f) = (egui::pos2(x, y), f as u64);
-        let n = self.frame as u64;
-        if n == f {
-            raw.events.push(egui::Event::PointerMoved(pos));
-        } else if n == f + 2 || n == f + 4 {
-            raw.events.push(egui::Event::PointerButton { pos, button: egui::PointerButton::Secondary, pressed: n == f + 2, modifiers: egui::Modifiers::NONE });
-            eprintln!("TEST: right {} at {pos:?} frame {n}", if n == f + 2 { "down" } else { "up" });
+        });
+        if let Some(p) = at {
+            raw.events.push(egui::Event::PointerMoved(*p));
         }
     }
 
@@ -2691,8 +2686,12 @@ impl eframe::App for App {
 #[cfg_attr(target_os = "android", allow(dead_code))]
 fn main() -> eframe::Result<()> {
     let args: Vec<String> = std::env::args().collect();
-    // Developer aid: list which families have the drop-down features, then quit.
-    // Developer aid: switch one font file on, then off again, and report.
+    // `FontCraft --version`: its name and version, then quit (the installers' checks run it).
+    if args.iter().any(|a| a == "--version" || a == "-V") {
+        println!("FontCraft {}", env!("CARGO_PKG_VERSION"));
+        return Ok(());
+    }
+    // Developer aid: turn the login item on or off, then quit.
     if let Some(i) = args.iter().position(|a| a == "--test-login-item") {
         background::set_login_item(args.get(i + 1).map(|v| v == "on").unwrap_or(false));
         return Ok(());
@@ -2701,6 +2700,17 @@ fn main() -> eframe::Result<()> {
     if let Some(i) = args.iter().position(|a| a == "--test-photocraft-channel") {
         if let (Some(port), Some(token)) = (args.get(i + 1), args.get(i + 2)) {
             autoact::photocraft::selftest(port, token);
+        }
+        return Ok(());
+    }
+    // Developer aid: PressCraft's font field through Accessibility (a running PressCraft), then quit.
+    if let Some(i) = args.iter().position(|a| a == "--test-presscraft-field") {
+        presscraft::selftest(args.get(i + 1).map(String::as_str));
+        return Ok(());
+    }
+    if let Some(i) = args.iter().position(|a| a == "--test-presscraft-apply") {
+        if let Some(family) = args.get(i + 1) {
+            presscraft::selftest_apply(family, args.get(i + 2).map(String::as_str));
         }
         return Ok(());
     }
@@ -2854,7 +2864,7 @@ fn starts_in_background(settings: &Settings, screenshot: bool) -> bool {
 }
 
 /// Android: the entry point the system calls (built as a library by `android/` and
-/// `compilar-android.sh`). FontCraft's data goes in the app's private folder; the fonts shown are the
+/// `packaging/android/build-apk.sh`). FontCraft's data goes in the app's private folder; the fonts shown are the
 /// system's (/system/fonts), libraries, folders and Google Fonts.
 #[cfg(target_os = "android")]
 #[no_mangle]

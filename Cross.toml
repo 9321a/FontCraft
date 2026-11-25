@@ -1,15 +1,19 @@
-[target.x86_64-unknown-linux-gnu]
-image = "ghcr.io/cross-rs/x86_64-unknown-linux-gnu:edge"
-pre-build = [
-    "dpkg --add-architecture amd64 && apt-get update",
-    "apt-get install --no-install-recommends -y pkg-config libatk1.0-dev libgtk-3-dev libgdk-pixbuf2.0-dev libxdo-dev libx11-dev"
-]
-
+# Linux builds for the other processor (packaging/linux/build-deb.sh): `cross` builds FontCraft in a
+# container that has that processor's compiler, and these commands add the libraries FontCraft links
+# for it (GTK for the menu bar icon and the print dialog, xdo for its menus). Ubuntu keeps its ARM
+# packages on ports.ubuntu.com: that source is added when the image doesn't have it.
 [target.aarch64-unknown-linux-gnu]
 image = "ghcr.io/cross-rs/aarch64-unknown-linux-gnu:edge"
 pre-build = [
-    "dpkg --add-architecture arm64 && apt-get update",
-    "apt-get install --no-install-recommends -y pkg-config libatk1.0-dev:arm64 libgtk-3-dev:arm64 libgdk-pixbuf2.0-dev:arm64 libxdo-dev:arm64 libx11-dev:arm64"
+    "dpkg --add-architecture arm64",
+    '''grep -rqs ports.ubuntu.com /etc/apt/sources.list /etc/apt/sources.list.d || { sed -i -E 's/^deb (https?):/deb [arch=amd64] \1:/' /etc/apt/sources.list; . /etc/os-release; for s in "" -updates -security; do echo "deb [arch=arm64] http://ports.ubuntu.com/ubuntu-ports ${VERSION_CODENAME}$s main universe" >> /etc/apt/sources.list; done; }''',
+    "apt-get update",
+    "apt-get install --assume-yes --no-install-recommends pkg-config libgtk-3-dev:arm64 libxdo-dev:arm64",
 ]
 
-
+[target.x86_64-unknown-linux-gnu]
+image = "ghcr.io/cross-rs/x86_64-unknown-linux-gnu:edge"
+pre-build = [
+    "apt-get update",
+    "apt-get install --assume-yes --no-install-recommends pkg-config libgtk-3-dev libxdo-dev",
+]

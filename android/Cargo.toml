@@ -1,5 +1,5 @@
 # FontCraft for Android: the same code as the desktop app (../src), built as the library Android
-# loads (NativeActivity). Built from Linux with ../compilar-android.sh (cargo-apk).
+# loads (NativeActivity). Built with ../packaging/android/build-apk.sh (cargo-apk).
 [package]
 name = "fontcraft-android"
 version = "0.1.0"

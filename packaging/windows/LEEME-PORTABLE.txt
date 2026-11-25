@@ -1,13 +1,14 @@
-FontCraft portátil (Windows x64)
-================================
+FontCraft portátil (Windows 10 y 11, 64 bits)
+=============================================
 
-- No necesita instalación: abre fontcraft.exe.
-- Mientras exista el archivo "portable.txt" junto a fontcraft.exe, FontCraft guarda sus ajustes,
+- No necesita instalación. En un PC con procesador Intel o AMD abre FontCraft.exe; en un PC con
+  procesador ARM (Snapdragon y otros) abre FontCraft-ARM64.exe.
+- Mientras exista el archivo "portable.txt" en esta carpeta, FontCraft guarda sus ajustes,
   bibliotecas, favoritas y descargas de Google Fonts en la carpeta "FontCraftData" de esta misma
   carpeta, así que puedes llevarla en una memoria USB a otro equipo.
 - Borra "portable.txt" si prefieres que use la carpeta normal del usuario (%APPDATA%\FontCraft).
 
-FontCraft portable (Windows x64)
-- No installation: open fontcraft.exe.
-- While "portable.txt" sits next to fontcraft.exe, settings, libraries, favourites and Google Fonts
-  downloads are kept in "FontCraftData" in this folder, so it can travel on a USB stick.
+FontCraft portable (Windows 10 and 11, 64-bit)
+- No installation: on an Intel or AMD PC open FontCraft.exe; on an ARM PC open FontCraft-ARM64.exe.
+- While "portable.txt" sits in this folder, settings, libraries, favourites and Google Fonts
+  downloads are kept in "FontCraftData" here, so the folder can travel on a USB stick.

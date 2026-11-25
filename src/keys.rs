@@ -19,6 +19,7 @@ pub fn shortcut_for(ch: char) -> Option<String> {
 }
 
 /// Modifiers in the order Mac menus write them.
+#[cfg_attr(not(target_os = "macos"), allow(dead_code))]
 fn mods_label(m: u32) -> String {
     let mut s = String::new();
     if m & 0x08 != 0 {
@@ -31,6 +32,7 @@ fn mods_label(m: u32) -> String {
 }
 
 /// What is printed on the key.
+#[cfg_attr(not(target_os = "macos"), allow(dead_code))]
 fn key_label(code: u16, base: Option<char>) -> String {
     match code {
         49 => "Espacio".into(),

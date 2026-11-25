@@ -1,0 +1,10 @@
+# FontCraft for Windows carries Microsoft's C runtime inside the program («static CRT»), so it
+# starts on every Windows 10 or 11 PC: many (above all ARM64 ones) don't have the Visual C++
+# Redistributable, and a program that asks for its DLL stops with «no se encontró
+# VCRUNTIME140.dll» (it happened with PressCraft's ARM64 installer). packaging/windows/
+# build-installer.ps1 and check-installer.ps1 check that neither program asks for it.
+[target.x86_64-pc-windows-msvc]
+rustflags = ["-C", "target-feature=+crt-static"]
+
+[target.aarch64-pc-windows-msvc]
+rustflags = ["-C", "target-feature=+crt-static"]

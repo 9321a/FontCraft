@@ -40,6 +40,9 @@ pub enum How {
     /// Only turn fonts on for the app (its text tools then list them) and insert characters; the
     /// app doesn't take a font from pasted text and has no script to set it.
     Activate,
+    /// Type the family into the app's own font field through Accessibility and press Return
+    /// (PressCraft, macOS: presscraft.rs); elsewhere as Activate.
+    Field,
 }
 
 /// When an app reads the list of installed fonts.
@@ -228,6 +231,11 @@ const CATALOG: &[AppDef] = &[
     AppDef { name: "DesignCraft", bundle: "ai.storyteller.designcraft", ps_names: false, fonts: FontRead::Menu(DESIGNCRAFT_RELOAD), linux: &["designcraft"], win: &["DesignCraft.exe"], ..MAC },
     AppDef { name: "PhotoCraft", bundle: "ai.storyteller.photocraft", ps_names: false, fonts: FontRead::AtStart, linux: &["photocraft"], win: &["PhotoCraft.exe"], ..MAC },
     AppDef { name: "PdfCraft", bundle: "ai.storyteller.pdfcraft", ps_names: false, fonts: FontRead::AtStart, linux: &["pdfcraft"], win: &["PdfCraft.exe"], ..MAC },
+    // PressCraft (app.presscraft), the person's layout, drawing and photo app: it reads the font
+    // folders once when it opens, pastes plain text only and has no script or control channel; its
+    // text options' "Fuente" field takes the family through Accessibility (presscraft.rs). Windows
+    // and Linux: the font is turned on and the person picks it there.
+    AppDef { name: "PressCraft", bundle: "app.presscraft", ps_names: false, how: How::Field, fonts: FontRead::AtStart, linux: &["presscraft", "PressCraft"], win: &["PressCraft.exe"], ..MAC },
     // More ArtCraft apps the person uses (bundle ids in the family's pattern; the program names find
     // them on every system). The text, slide and sheet apps get the selected text's font by paste.
     AppDef { name: "WordCraft", bundle: "ai.storyteller.wordcraft", ps_names: false, fonts: FontRead::AtStart, linux: &["wordcraft"], win: &["WordCraft.exe"], ..MAC },
@@ -339,6 +347,10 @@ fn front_document_of(bundle: &str, procs: &[String]) -> Option<PathBuf> {
     #[cfg(target_os = "macos")]
     {
         let _ = procs;
+        // PressCraft: its window title and its recent list (presscraft.rs).
+        if bundle == crate::presscraft::BUNDLE {
+            return crate::presscraft::front_document();
+        }
         if stopped_checking().lock().is_ok_and(|s| s.contains(bundle)) {
             return None;
         }
@@ -650,6 +662,7 @@ fn bundle_version(app: &Path) -> Option<String> {
 }
 
 /// Whether an app is strictly excluded (email clients like Outlook, browsers, viewers, dev tools).
+#[cfg_attr(target_os = "windows", allow(dead_code))]
 fn is_excluded(bundle: &str, name: &str) -> bool {
     let b = bundle.to_ascii_lowercase();
     let n = name.to_ascii_lowercase();
@@ -1301,6 +1314,8 @@ fn post_distributed(name: &str, object: &str) -> bool {
 /// - `text.insert`, `text.move {dir: left, extend}` and `type.char` put a glyph in its font.
 /// A DesignCraft opened before FontCraft has no channel: the routes of before are used for it.
 pub(crate) mod designcraft {
+    // The channel is opened on macOS only.
+    #![cfg_attr(not(target_os = "macos"), allow(dead_code, unused_imports))]
     use std::path::PathBuf;
     use std::sync::atomic::{AtomicBool, Ordering};
     use std::time::Duration;
@@ -1482,6 +1497,8 @@ pub(crate) mod designcraft {
 /// PhotoCraft runs once on a Mac (a second copy closes), so one opened before FontCraft keeps no
 /// channel until it is reopened; the routes of before are used for it meanwhile.
 pub(crate) mod photocraft {
+    // The channel is opened on macOS only.
+    #![cfg_attr(not(target_os = "macos"), allow(dead_code, unused_imports))]
     use std::io::{BufRead, BufReader, Write};
     use std::sync::atomic::{AtomicBool, Ordering};
     use std::time::Duration;
@@ -1919,6 +1936,15 @@ fn apply_in_app_exact(bundle: &str, kind: Option<Docs>, font: &str, script: Opti
             }
         }
     }
+    // PressCraft (a glyph just typed and selected): its own font field (presscraft.rs). It pastes
+    // plain text only, so copy → swap → paste would only put the same text back.
+    if bundle == crate::presscraft::BUNDLE {
+        route(8);
+        return match crate::presscraft::set_font(font, None) {
+            crate::presscraft::Answer::Done => Ok(doc),
+            _ => Err(false),
+        };
+    }
     // Everything else: copy, swap the font, paste.
     route(4);
     let (saved_rtf, saved_text) = pb_get();
@@ -2077,6 +2103,11 @@ fn insert_in_app(bundle: &str, kind: Option<Docs>, text: &str, font: &str, scrip
     std::thread::sleep(Duration::from_millis(300));
     wait_front(bundle);
     let doc = kind.and_then(|k| osascript(&front_doc_script(bundle, k)));
+    // PressCraft takes typed characters as tool shortcuts unless text is being edited: with no font
+    // field showing (no text tool, no text selected), nothing is typed.
+    if bundle == crate::presscraft::BUNDLE && !crate::presscraft::field_showing() {
+        return Err(false);
+    }
     // A glyph goes in at the cursor and never replaces text that is selected: when the app reports
     // a selection (its focused field's AXSelectedTextRange), the caret is first moved to the
     // selection's end with the Right arrow (key code 124).
@@ -2302,6 +2333,9 @@ impl App {
                         designcraft_docs = Some(list.clone());
                         docs.insert(b.clone(), list);
                     }
+                } else if b == crate::presscraft::BUNDLE {
+                    // PressCraft: one window whose tabs hold its documents, and the title names only
+                    // the one in front, so which are open isn't known: its fonts stay until it quits.
                 } else if let Some(list) = window_documents(&b) {
                     // Any other app: the documents of its open windows (their file names).
                     docs.insert(b.clone(), list);
@@ -2464,6 +2498,16 @@ impl App {
         f.family.clone()
     }
 
+    /// Whether PressCraft lists this font's family: a file of that family was in the folders it
+    /// reads, or in FontCraft's own one, before it opened (presscraft.rs `read_when_opened`).
+    pub(crate) fn presscraft_lists(&self, face: usize) -> bool {
+        let family = self.lib.faces[face].family.to_lowercase();
+        let mut files: Vec<&Path> = self.lib.faces.iter().filter(|f| f.family.to_lowercase() == family).map(|f| self.lib.files[f.file].path.as_path()).collect();
+        files.sort();
+        files.dedup();
+        files.into_iter().any(crate::presscraft::read_when_opened)
+    }
+
     /// The selected font, used in the target app's selected text.
     pub(crate) fn apply_to_app(&mut self, app: usize, face: usize) {
         if APPLY_IN_FLIGHT.compare_exchange(false, true, std::sync::atomic::Ordering::SeqCst, std::sync::atomic::Ordering::SeqCst).is_err() {
@@ -2480,7 +2524,7 @@ impl App {
         // Windows: the selection's font is changed with copy, swap and paste (winauto.rs), with the
         // family name Windows apps use.
         #[cfg(target_os = "windows")]
-        if def.how() != How::Activate && !def.win.is_empty() {
+        if matches!(def.how(), How::Paste | How::Script) && !def.win.is_empty() {
             let family = self.lib.faces[face].family.clone();
             let (exes, bundle) = (def.win, def.bundle.to_string());
             std::thread::spawn(move || {
@@ -2507,8 +2551,36 @@ impl App {
         // DesignCraft, through its control channel: the exact face (family and style), in the
         // background, FontCraft staying in front; a font just turned on is read first (font.reload).
         let channel = (bundle == designcraft::BUNDLE || bundle == photocraft::BUNDLE).then(|| (self.lib.faces[face].family.clone(), self.lib.faces[face].style.clone()));
+        // PressCraft: its own font field (presscraft.rs), with the exact family and style, when
+        // PressCraft has the family in its list (it reads the fonts only when it opens).
+        let field = (bundle == crate::presscraft::BUNDLE).then(|| {
+            let f = &self.lib.faces[face];
+            (f.family.clone(), f.style.clone(), self.presscraft_lists(face))
+        });
         std::thread::spawn(move || {
             let _guard = InFlightGuard;
+            if let Some((family, style, listed)) = &field {
+                let outcome = if !listed {
+                    // Turned on after PressCraft opened: it stays on, and PressCraft is reopened.
+                    Outcome::Reopen(name)
+                } else if !trusted_or_ask() {
+                    Outcome::NeedsAccess
+                } else {
+                    let _ = osascript(&format!("tell application id \"{bundle}\" to activate"));
+                    wait_front(&bundle);
+                    match crate::presscraft::set_font(family, Some(style)) {
+                        crate::presscraft::Answer::Done => {
+                            route(8);
+                            Outcome::Applied(name, None)
+                        }
+                        crate::presscraft::Answer::NotInList => Outcome::Reopen(name),
+                        crate::presscraft::Answer::NoField => Outcome::NoSelection(name),
+                        crate::presscraft::Answer::Unreachable => Outcome::NeedsAccess,
+                    }
+                };
+                pending.lock().unwrap().push((turned, bundle, outcome));
+                return;
+            }
             if let Some((family, style)) = &channel {
                 // PhotoCraft (its channel): type.setStyle on the selected type layers. A font just
                 // turned on is waited for until the system lists it (PhotoCraft asks CoreText).
@@ -2606,7 +2678,8 @@ impl App {
             if !exes.is_empty() {
                 let family = self.lib.faces[face].family.clone();
                 let bundle = def.bundle.to_string();
-                let set_font = def.how() != How::Activate;
+                // Only apps that take a font from pasted rich text (PressCraft pastes plain text).
+                let set_font = matches!(def.how(), How::Paste | How::Script);
                 let text = ch.to_string();
                 self.clip = Some(text.clone());
                 std::thread::spawn(move || {
@@ -2639,7 +2712,13 @@ impl App {
         // DesignCraft, through its control channel: typed at its text cursor and set in the face,
         // in the background (nothing copied, no keystrokes).
         let channel = (bundle == designcraft::BUNDLE).then(|| (self.lib.faces[face].family.clone(), self.lib.faces[face].style.clone()));
+        // PressCraft only draws the character in a family it listed when it opened.
+        let listed = bundle != crate::presscraft::BUNDLE || self.presscraft_lists(face);
         std::thread::spawn(move || {
+            if !listed {
+                pending.lock().unwrap().push((turned, bundle, Outcome::Reopen(name)));
+                return;
+            }
             if let Some((family, style)) = &channel {
                 if just_on {
                     designcraft::reload_fonts();
@@ -2828,6 +2907,8 @@ impl App {
             let lang = self.settings.lang;
             let msg = i18n::tr(lang, K::ReopenToSee).replace("{apps}", &reopen.join(", "));
             self.notice = Some(match self.notice.take() {
+                // Already said (the same app's own answer came first): said once.
+                Some(n) if n.contains(&msg) => n,
                 Some(n) if !n.is_empty() => format!("{n} {msg}"),
                 _ => msg,
             });
